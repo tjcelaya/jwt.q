@@ -49,8 +49,34 @@ q)pbkdf2["password";`byte$"salt";100;20]
 #include <openssl/md5.h>
 #include <openssl/rand.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #define KXVER 3
 #include "k.h"
+
+K hmacsha256(K x,K y) {
+    int lenx,leny,i; lenx=x->n; leny=y->n;
+    char message[lenx+1];
+    char secret[leny+1];
+
+    // copy x and y into regular cstrings
+    // TODO: hoist call to kC if possible
+    if(10==(x->t)){ for(i=0;i<lenx;i++){ message[i]=kC(x)[i]; } message[lenx]=0; }
+    if(10==(y->t)){ for(i=0;i<leny;i++){ message[i]=kC(y)[i]; } message[leny]=0; }
+
+    unsigned char* result;
+    result=HMAC(EVP_sha256(),(unsigned char*)secret,strlen(secret),(unsigned char*)message,strlen(message),NULL,NULL);
+
+    unsigned int bytelength;
+    bytelength = strlen(result);
+
+    K output=ktn(KG,bytelength);
+    for(i=0;i<bytelength;i++){
+        kG(output)[i]=result[i];
+    }
+
+    return output;
+
+}
 
 K hash(K x,K y){
     int lenx,leny,i;
