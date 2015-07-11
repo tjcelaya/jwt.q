@@ -9,3 +9,7 @@ install:
 
 clean:
 	rm qcrypt.so
+
+test:
+	gcc -m32 test.c -lssl -lcrypto
+	./a.out
