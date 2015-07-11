@@ -53,26 +53,55 @@ q)pbkdf2["password";`byte$"salt";100;20]
 #define KXVER 3
 #include "k.h"
 
-K hmacsha256(K x,K y) {
-    int lenx,leny,i; lenx=x->n; leny=y->n;
-    char message[lenx+1];
-    char secret[leny+1];
+K hmac(K x,K y,K f) {
+    int lenx,leny,lenf,i;
+    lenx=x->n;
+    leny=y->n;
+    lenf=f->n;
+    unsigned char secret[lenx+1];
+    unsigned char message[leny+1];
+    unsigned char hashfunction[lenf+1];
 
     // copy x and y into regular cstrings
-    // TODO: hoist call to kC if possible
-    if(10==(x->t)){ for(i=0;i<lenx;i++){ message[i]=kC(x)[i]; } message[lenx]=0; }
-    if(10==(y->t)){ for(i=0;i<leny;i++){ message[i]=kC(y)[i]; } message[leny]=0; }
-
-    unsigned char* result;
-    result=HMAC(EVP_sha256(),(unsigned char*)secret,strlen(secret),(unsigned char*)message,strlen(message),NULL,NULL);
+    if(10==(x->t)){ for(i=0;i<lenx;i++){ secret[i]      =kC(x)[i]; } secret[lenx]=0;       }
+    if(10==(y->t)){ for(i=0;i<leny;i++){ message[i]     =kC(y)[i]; } message[leny]=0;      }
+    if(10==(f->t)){ for(i=0;i<lenf;i++){ hashfunction[i]=kC(f)[i]; } hashfunction[lenf]=0; }
 
     unsigned int bytelength;
-    bytelength = strlen(result);
+    const EVP_MD* (*evp_fn)(void);
+    if(strcmp("sha1",hashfunction)==0){
+        bytelength=SHA_DIGEST_LENGTH;
+        evp_fn=&EVP_sha1;
+    } else if(strcmp("sha224",hashfunction)==0){
+        bytelength=SHA224_DIGEST_LENGTH;
+        evp_fn=&EVP_sha224;
+    } else if(strcmp("sha256",hashfunction)==0){
+        bytelength=SHA256_DIGEST_LENGTH;
+        evp_fn=&EVP_sha256;
+    } else if(strcmp("sha384",hashfunction)==0){
+        bytelength=SHA384_DIGEST_LENGTH;
+        evp_fn=&EVP_sha384;
+    } else if(strcmp("sha512",hashfunction)==0){
+        bytelength=SHA512_DIGEST_LENGTH;
+        evp_fn=&EVP_sha512;
+    } else if(strcmp("md5",hashfunction)==0){
+        bytelength=MD5_DIGEST_LENGTH;
+        evp_fn=&EVP_md5;
+    } else{
+        krr("Please choose a supported hash function");
+        return (K)0;
+    }
+
+    unsigned char* result;
+    result=calloc(bytelength,sizeof(char));
+    HMAC(evp_fn(),secret,strlen(secret),message,strlen(message),result,NULL);
 
     K output=ktn(KG,bytelength);
     for(i=0;i<bytelength;i++){
         kG(output)[i]=result[i];
     }
+
+    free(result);
 
     return output;
 
