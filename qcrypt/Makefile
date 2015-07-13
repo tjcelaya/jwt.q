@@ -6,12 +6,14 @@ build:
 
 # -Wall -pedantic generates too many warning right now, we'll clean it up later
 
-install:
+install: build
 	cp qcrypt.so ~/q/$(PLATFORM)$(BIT)/
 
 clean:
 	rm qcrypt.so
 
-test:
-	gcc -m32 test.c -lssl -lcrypto
-	./a.out
+test: install
+	q test.q
+testloudly: install
+	q test.q -vt
+
